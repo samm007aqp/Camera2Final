@@ -17,6 +17,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Size;
@@ -27,16 +28,21 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Array;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
+    private static final int REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT = 1;
     private TextureView mTextureView;
     private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
@@ -92,6 +98,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton mRecordImageButton;
     private boolean mIsRecording = false;
 
+    private File mVideoFolder;
+    private String mVideoFileName;
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
 
     static {
@@ -122,6 +130,7 @@ public class MainActivity extends AppCompatActivity {
                     mIsRecording = false;
                     mRecordImageButton.setImageResource(R.mipmap.presence_video_online_foreground);
                 }else{
+                    checkWriteStoragePermission();
                     mIsRecording = true;
                     mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
                 }
@@ -140,13 +149,28 @@ public class MainActivity extends AppCompatActivity {
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
     }
- //   @Override   check if the super class does not have  a onRequestPermissionResult method --------------------------
-    public void onRequestPermissionResult(int requestCode, String [] permissions,int [] grandResults){
+    @Override  //  check if the super class does not have  a onRequestPermissionResult method --------------------------
+    public void onRequestPermissionsResult(int requestCode, String [] permissions,int [] grandResults){
         super.onRequestPermissionsResult(requestCode,permissions,grandResults);
         if(requestCode == REQUEST_CAMERA_PERMISSION_RESULT){
             if(grandResults[0] == PackageManager.PERMISSION_GRANTED){
                 Toast.makeText(getApplicationContext(),"Application will not" +
                         "run without camera services",Toast.LENGTH_SHORT);
+            }
+        }
+        if(requestCode == REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT){
+            if(grandResults[0] == PackageManager.PERMISSION_GRANTED){
+                mIsRecording = true;
+                mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
+                try{
+                    createVideoFileName();
+                }catch(IOException e){
+                    e.printStackTrace();
+                }
+                Toast.makeText(this,
+                        "Permisos otorgados correctamente!",Toast.LENGTH_SHORT).show();
+            }else{
+                Toast.makeText(this,"La App necesita guardar informacion para funcionar",Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -294,4 +318,48 @@ public class MainActivity extends AppCompatActivity {
             return choices[0];
         }
     }
+
+    private void createVideoFolder() {  // create a folder
+        File movieFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
+        mVideoFolder = new File(movieFile, "camera2VideoImage");
+        if(!mVideoFolder.exists()) {
+            mVideoFolder.mkdirs();
+        }
+    }
+    private File createVideoFileName() throws IOException {   // create a file name
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String prepend = "VIDEO_" + timestamp + "_";
+        File videoFile = File.createTempFile(prepend, ".mp4", mVideoFolder);
+        mVideoFileName = videoFile.getAbsolutePath();
+        return videoFile;
+    }
+    private void checkWriteStoragePermission() {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED) {
+                mIsRecording = true;
+                mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
+                try {
+                    createVideoFileName();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                if(shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    Toast.makeText(this, "La app nesesita guardar videos y fotos", Toast.LENGTH_SHORT).show();
+                }
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT);
+            }
+        } else {
+            mIsRecording = true;
+            mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
+            try {
+                createVideoFileName();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
 }
