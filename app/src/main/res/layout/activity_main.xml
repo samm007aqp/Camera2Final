@@ -16,25 +16,39 @@
 
     <ImageButton
         android:id="@+id/cameraButton"
-        android:layout_width="70dp"
-        android:layout_height="70dp"
-        android:contentDescription="@string/camera_button"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
         android:layout_marginStart="33dp"
         android:layout_marginBottom="34dp"
+        android:contentDescription="@string/camera_button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@mipmap/camera_icon_foreground" />
 
     <ImageButton
         android:id="@+id/videoButton2"
-        android:layout_width="70dp"
-        android:layout_height="70dp"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
         android:layout_marginEnd="33dp"
         android:layout_marginBottom="34dp"
         android:contentDescription="@string/video_button"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:srcCompat="@mipmap/presence_video_online_foreground" />
+
+    <Chronometer
+        android:id="@+id/cronometro"
+        android:layout_width="70dp"
+        android:layout_height="35dp"
+        android:layout_above="@+id/videoButton2"
+        android:layout_alignStart="@+id/videoButton2"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="116dp"
+        android:textColor="#ff0000"
+        android:textSize="25dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
