@@ -19,6 +19,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.CamcorderProfile;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
@@ -153,12 +154,11 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             } finally {
                 mImage.close();
+                Intent mediaStoreUpdateIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                 mediaStoreUpdateIntent.setData(Uri.fromFile(new File(mImageFileName)));
+                sendBroadcast(mediaStoreUpdateIntent);
 
-                //Intent mediaStoreUpdateIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-               // mediaStoreUpdateIntent.setData(Uri.fromFile(new File(mImageFileName)));
-                //sendBroadcast(mediaStoreUpdateIntent);
-
-                if(fileOutputStream != null) {
+                if (fileOutputStream != null) {
                     try {
                         fileOutputStream.close();
                     } catch (IOException e) {
@@ -196,12 +196,41 @@ public class MainActivity extends AppCompatActivity {
                     process(result);
                 }
             };
+    private CameraCaptureSession mRecordCaptureSession;
+    private CameraCaptureSession.CaptureCallback mRecordCaptureCallback = new
+            CameraCaptureSession.CaptureCallback() {
+
+                private void process(CaptureResult captureResult) {
+                    switch (mCaptureState) {
+                        case STATE_PREVIEW:
+                            // Do nothing
+                            break;
+                        case STATE_WAIT_LOCK:
+                            mCaptureState = STATE_PREVIEW;
+                            Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
+                            if(afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
+                                    afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
+                                Toast.makeText(getApplicationContext(), "AF Locked!", Toast.LENGTH_SHORT).show();
+                                startStillCaptureRequest();
+                            }
+                            break;
+                    }
+                }
+
+                @Override
+                public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+                    super.onCaptureCompleted(session, request, result);
+
+                    process(result);
+                }
+            };
     private CaptureRequest.Builder mCaptureRequestBuilder;
 
     private ImageButton mRecordImageButton;
     private ImageButton mStillImageButton;
 
     private boolean mIsRecording = false;
+    private boolean mIsTimelapse = false;
 
     private File mVideoFolder;
     private String mVideoFileName;
@@ -242,24 +271,39 @@ public class MainActivity extends AppCompatActivity {
                  lockFocus();
             }
         });
+
         mRecordImageButton = (ImageButton) findViewById(R.id.videoButton2);
         mRecordImageButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
-                if(mIsRecording){
+                if(mIsRecording|| mIsTimelapse){
                     mChronometer.stop();
                     mChronometer.setVisibility(View.INVISIBLE);
                     mIsRecording = false;
+                    mIsTimelapse = false;
                     mRecordImageButton.setImageResource(R.mipmap.presence_video_online_foreground);
                     mMediaRecorder.stop();
                     mMediaRecorder.reset();
+                    Intent mediaStoreUpdateIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                    mediaStoreUpdateIntent.setData(Uri.fromFile(new File(mVideoFileName)));
+                    sendBroadcast(mediaStoreUpdateIntent);
+
                     startPreview();
 
                 }else{
+                    mIsRecording = true;
+                    mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
                     checkWriteStoragePermission();
-                   // mIsRecording = true;
-                   // mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
                 }
+            }
+        });
+        mRecordImageButton.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                mIsTimelapse =true;
+                mRecordImageButton.setImageResource(R.mipmap.btn_timelapse);
+                checkWriteStoragePermission();
+                return true;
             }
         });
     }
@@ -278,10 +322,13 @@ public class MainActivity extends AppCompatActivity {
     @Override  //  check if the super class does not have  a onRequestPermissionResult method --------------------------
     public void onRequestPermissionsResult(int requestCode, String [] permissions,int [] grandResults){
         super.onRequestPermissionsResult(requestCode,permissions,grandResults);
-        if(requestCode == REQUEST_CAMERA_PERMISSION_RESULT){
-            if(grandResults[0] == PackageManager.PERMISSION_GRANTED){
+        if(requestCode != REQUEST_CAMERA_PERMISSION_RESULT){
+            if(grandResults[0] != PackageManager.PERMISSION_GRANTED){
                 Toast.makeText(getApplicationContext(),"Application will not" +
                         "run without camera services",Toast.LENGTH_SHORT);
+            }
+            if(grandResults[1] != PackageManager.PERMISSION_GRANTED){
+                Toast.makeText(getApplicationContext(),"Application will not have audio on record",Toast.LENGTH_SHORT);
             }
         }
         if(requestCode == REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT){
@@ -312,13 +359,13 @@ public class MainActivity extends AppCompatActivity {
     public void onWindowFocusChanged(boolean hasFocas) {
         super.onWindowFocusChanged(hasFocas);
         View decorView = getWindow().getDecorView();
-        if (hasFocas) {
+        if(hasFocas) {
             decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
         }
     }
 
@@ -367,7 +414,7 @@ public class MainActivity extends AppCompatActivity {
                         if(shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)){
                             Toast.makeText(this, "Camera app required access to camera", Toast.LENGTH_SHORT).show();
                         }
-                        requestPermissions(new String[]{Manifest.permission.CAMERA},REQUEST_CAMERA_PERMISSION_RESULT );
+                        requestPermissions(new String[]{Manifest.permission.CAMERA,Manifest.permission.RECORD_AUDIO},REQUEST_CAMERA_PERMISSION_RESULT );
                     }
                 }else {
                     cameraManager.openCamera(mCameraId, mCameraDeviceStateCallback, mBackgroundHandler);
@@ -378,7 +425,11 @@ public class MainActivity extends AppCompatActivity {
         }
         private void startRecord(){
         try{
-            setupMediaRecorder();
+            if(mIsRecording){
+                setupMediaRecorder();
+            }else if(mIsTimelapse){
+                setupTimelapse();
+            }
             SurfaceTexture surfaceTexture = mTextureView.getSurfaceTexture();
             surfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(),mPreviewSize.getHeight());
             Surface previewSurface = new Surface(surfaceTexture);
@@ -387,11 +438,12 @@ public class MainActivity extends AppCompatActivity {
             mCaptureRequestBuilder.addTarget(previewSurface);
             mCaptureRequestBuilder.addTarget(recordSurface);
 
-            mCameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
+            mCameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface,mImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession session) {
+                    mRecordCaptureSession = session;
                     try{
-                        session.setRepeatingRequest(
+                        mRecordCaptureSession.setRepeatingRequest(
                             mCaptureRequestBuilder.build(),null,null
                         );
                     }catch (CameraAccessException e){
@@ -444,7 +496,12 @@ public class MainActivity extends AppCompatActivity {
     }
     private void startStillCaptureRequest() {
         try {
+            if(mIsRecording){
+                mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_VIDEO_SNAPSHOT);
+
+            }else {
                 mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            }
                 mCaptureRequestBuilder.addTarget(mImageReader.getSurface());
                 mCaptureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, mTotalRotation);
 
@@ -461,8 +518,11 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                     };
-
-                mPreviewCaptureSession.capture(mCaptureRequestBuilder.build(), stillCaptureCallback, null);
+                if(mIsRecording) {
+                    mRecordCaptureSession.capture(mCaptureRequestBuilder.build(), stillCaptureCallback, null);
+                }else {
+                    mPreviewCaptureSession.capture(mCaptureRequestBuilder.build(), stillCaptureCallback, null);
+                }
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -526,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
     }
     private void createImageFolder() {
         File imageFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-        mImageFolder = new File(imageFile, "cameraImage");
+        mImageFolder = new File(imageFile, "camera2VideoImage");
         if(!mImageFolder.exists()) {
             mImageFolder.mkdirs();
         }
@@ -543,8 +603,8 @@ public class MainActivity extends AppCompatActivity {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     == PackageManager.PERMISSION_GRANTED) {
-                mIsRecording = true;
-                mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
+               // mIsRecording = true;
+               // mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
                 try {
                     createVideoFileName();
                 } catch (IOException e) {
@@ -562,8 +622,8 @@ public class MainActivity extends AppCompatActivity {
                 requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT);
             }
         } else {
-            mIsRecording = true;
-            mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
+           // mIsRecording = true;
+           // mRecordImageButton.setImageResource(R.mipmap.presence_video_busy_foreground);
             try {
                 createVideoFileName();
             } catch (IOException e) {
@@ -579,14 +639,22 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupMediaRecorder() throws IOException {
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-       // mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         mMediaRecorder.setOutputFile(mVideoFileName);
         mMediaRecorder.setVideoEncodingBitRate(1000000);
         mMediaRecorder.setVideoFrameRate(30);
         mMediaRecorder.setVideoSize(mVideoSize.getWidth(), mVideoSize.getHeight());
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-       // mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mMediaRecorder.setOrientationHint(mTotalRotation);
+        mMediaRecorder.prepare();
+    }
+    private void setupTimelapse() throws IOException {
+        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mMediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_TIME_LAPSE_HIGH));
+        mMediaRecorder.setOutputFile(mVideoFileName);
+        mMediaRecorder.setCaptureRate(2);
         mMediaRecorder.setOrientationHint(mTotalRotation);
         mMediaRecorder.prepare();
     }
@@ -594,7 +662,11 @@ public class MainActivity extends AppCompatActivity {
         mCaptureState = STATE_WAIT_LOCK;
         mCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
         try {
-            mPreviewCaptureSession.capture(mCaptureRequestBuilder.build(), mPreviewCaptureCallback, mBackgroundHandler);
+            if(mIsRecording){
+                mRecordCaptureSession.capture(mCaptureRequestBuilder.build(), mRecordCaptureCallback, mBackgroundHandler);
+            }else {
+                mPreviewCaptureSession.capture(mCaptureRequestBuilder.build(), mPreviewCaptureCallback, mBackgroundHandler);
+            }
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }

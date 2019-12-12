@@ -1,5 +1,9 @@
 package com.example.camera2final;
 
+import android.view.View;
+
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -10,8 +14,14 @@ import static org.junit.Assert.*;
  * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
  */
 public class ExampleUnitTest {
+    private MainActivity mMainActivity;
+
+    @Before
+    public void setUp (){mMainActivity = new MainActivity(); }
     @Test
-    public void addition_isCorrect() {
-        assertEquals(4, 2 + 2);
+    public void check_Views() {
+        View view =  mMainActivity.findViewById(R.id.textureView);
+        assertNotNull(view);
     }
+
 }

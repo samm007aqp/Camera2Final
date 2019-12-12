@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -11,30 +11,29 @@
         android:id="@+id/textureView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageButton
-        android:id="@+id/cameraButton"
-        android:layout_width="75dp"
-        android:layout_height="75dp"
-        android:layout_marginStart="33dp"
-        android:layout_marginBottom="34dp"
-        android:contentDescription="@string/camera_button"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:srcCompat="@mipmap/camera_icon_foreground" />
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true" />
 
     <ImageButton
         android:id="@+id/videoButton2"
         android:layout_width="75dp"
         android:layout_height="75dp"
-        android:layout_marginEnd="33dp"
-        android:layout_marginBottom="34dp"
+        android:layout_marginBottom="33dp"
+        android:layout_alignParentBottom="true"
+        android:src="@mipmap/presence_video_online_foreground"
         android:contentDescription="@string/video_button"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:srcCompat="@mipmap/presence_video_online_foreground" />
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="40dp" />
+
+    <ImageButton
+        android:id="@+id/cameraButton"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:layout_alignTop="@+id/videoButton2"
+        android:src="@mipmap/camera_icon_foreground"
+        android:contentDescription="@string/camera_button"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="40dp" />
 
     <Chronometer
         android:id="@+id/cronometro"
@@ -42,8 +41,9 @@
         android:layout_height="35dp"
         android:layout_above="@+id/videoButton2"
         android:layout_alignStart="@+id/videoButton2"
+        android:layout_marginStart="0dp"
         android:layout_marginEnd="32dp"
-        android:layout_marginBottom="116dp"
+        android:layout_marginBottom="28dp"
         android:textColor="#ff0000"
         android:textSize="25dp"
         android:visibility="invisible"
@@ -51,4 +51,4 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>
